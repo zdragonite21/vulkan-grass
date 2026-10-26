@@ -15,6 +15,8 @@ layout(location = 2) in vec4 in_v2[];
 layout(location = 3) in vec4 in_up[];
 
 layout(location = 0) out vec2 fragUV;
+layout(location = 1) out vec3 fragPos;
+layout(location = 2) out vec3 out_v0;
 
 const float tau = 0.5;
 
@@ -43,4 +45,6 @@ void main() {
     vec3 p = mix(c0, c1, t);
     gl_Position = camera.proj * camera.view * vec4(p, 1);
     fragUV = gl_TessCoord.xy;
+    fragPos = vec3(camera.view * vec4(p, 1));
+    out_v0 = v0;
 }
