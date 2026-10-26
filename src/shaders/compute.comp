@@ -37,7 +37,7 @@ inputBlades;
 layout(set = 2, binding = 1, std430) buffer CulledBlades { Blade blades[]; }
 culledBlades;
 
-layout(set = 2, binding = 3) buffer NumBlades {
+layout(set = 2, binding = 2) buffer NumBlades {
     uint vertexCount;   // Write the number of blades remaining here
     uint instanceCount; // = 1
     uint firstVertex;   // = 0
