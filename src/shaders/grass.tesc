@@ -9,7 +9,6 @@ layout(set = 0, binding = 0) uniform CameraBufferObject {
 }
 camera;
 
-// TODO: Declare tessellation control shader inputs and outputs
 layout(location = 0) in vec4 in_v0[];
 layout(location = 1) in vec4 in_v1[];
 layout(location = 2) in vec4 in_v2[];
@@ -30,8 +29,6 @@ void main() {
     out_v1[gl_InvocationID] = in_v1[gl_InvocationID];
     out_v2[gl_InvocationID] = in_v2[gl_InvocationID];
     out_up[gl_InvocationID] = in_up[gl_InvocationID];
-
-    // TODO: Write any shader outputs
 
     if (gl_InvocationID == 0) {
         gl_TessLevelInner[0] = level;

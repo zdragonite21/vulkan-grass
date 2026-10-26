@@ -22,7 +22,6 @@ struct Blade {
     vec4 up;
 };
 
-// TODO: Add bindings to:
 // 1. Store the input blades
 // 2. Write out the culled blades
 // 3. Write the total number of blades remaining

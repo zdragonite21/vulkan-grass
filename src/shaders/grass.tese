@@ -9,14 +9,14 @@ layout(set = 0, binding = 0) uniform CameraBufferObject {
 }
 camera;
 
-// TODO: Declare tessellation evaluation shader inputs and outputs
-
 layout(location = 0) in vec4 in_v0[];
 layout(location = 1) in vec4 in_v1[];
 layout(location = 2) in vec4 in_v2[];
 layout(location = 3) in vec4 in_up[];
 
 layout(location = 0) out vec2 fragUV;
+
+const float tau = 0.5;
 
 void main() {
     float u = gl_TessCoord.x;
@@ -38,8 +38,9 @@ void main() {
     vec3 c0 = c - w * t1;
     vec3 c1 = c + w * t1;
 
-    // linear interop: pyramid
-    vec3 p = (1 - u) * c0 + u * c1;
+    // TODO: can improving aliasing at further distances (from paper)
+    float t = 0.5 + (u - 0.5) * (1 - max(v - tau, 0) / (1 - tau));
+    vec3 p = mix(c0, c1, t);
     gl_Position = camera.proj * camera.view * vec4(p, 1);
     fragUV = gl_TessCoord.xy;
 }
