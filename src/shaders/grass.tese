@@ -40,6 +40,6 @@ void main() {
 
     // linear interop: pyramid
     vec3 p = (1 - u) * c0 + u * c1;
-    gl_Position = vec4(p, 1);
+    gl_Position = camera.proj * camera.view * vec4(p, 1);
     fragUV = gl_TessCoord.xy;
 }
