@@ -74,6 +74,9 @@ void main() {
         // orientation culling
         return;
     }
+
+    b.v2 += vec4(1, 0, 0, 0);
+
     uint slot = atomicAdd(numBlades.vertexCount, 1u);
-    culledBlades.blades[slot] = inputBlades.blades[gl_GlobalInvocationID.x];
+    culledBlades.blades[slot] = b;
 }

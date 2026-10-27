@@ -19,7 +19,7 @@ layout(location = 1) out vec4 out_v1[];
 layout(location = 2) out vec4 out_v2[];
 layout(location = 3) out vec4 out_up[];
 
-const int level = 3;
+const int level = 4;
 
 void main() {
     // Don't move the origin location of the patch
@@ -31,8 +31,8 @@ void main() {
     out_up[gl_InvocationID] = in_up[gl_InvocationID];
 
     if (gl_InvocationID == 0) {
-        gl_TessLevelInner[0] = level;
-        gl_TessLevelInner[1] = level;
+        gl_TessLevelInner[0] = level - 2;
+        gl_TessLevelInner[1] = level - 2;
 
         gl_TessLevelOuter[0] = level;
         gl_TessLevelOuter[1] = level;
