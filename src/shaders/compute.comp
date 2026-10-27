@@ -103,6 +103,14 @@ bool inBounds(float value, float bounds) { return (value >= -bounds) && (value <
 const float mass = 1;
 const float gravity = -9.8;
 
+bool in_frustum(vec3 p, mat4 vp) {
+    vec4 c = vp * vec4(p, 1);
+    float h = c.w + 0.05;
+    float hz = c.w + 0.01;
+    return all(greaterThanEqual(c.xy, vec2(-h))) && all(lessThanEqual(c.xy, vec2(h))) &&
+           c.z >= 0 && c.z <= hz;
+}
+
 void main() {
     // Reset the number of blades to 0
     if (gl_GlobalInvocationID.x == 0) {
@@ -168,6 +176,9 @@ void main() {
     vec3 cv1 = v0 + cr * (v1 - v0);
     v2 = cv1 + cr * (v2 - v1);
 
+    // collisions
+    vec3 m = 0.25 * v0 + 0.5 * v1 + 0.25 * v2;
+
     // set blade
     b.v1.xyz = cv1;
     b.v2.xyz = v2;
@@ -175,10 +186,15 @@ void main() {
 
     // culling
 
+    // orientation culling
     vec3 fwd = normalize(-vec3(camera.view[0][2], camera.view[1][2], camera.view[2][2]));
-
     if (abs(dot(t1, fwd)) > 0.9) {
-        // orientation culling
+        return;
+    }
+
+    // view frustum culling
+    mat4 vp = camera.proj * camera.view;
+    if (!(in_frustum(v0, vp) || in_frustum(m, vp) || in_frustum(v2, vp))) {
         return;
     }
 
