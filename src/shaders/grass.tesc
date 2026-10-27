@@ -19,24 +19,36 @@ layout(location = 1) out vec4 out_v1[];
 layout(location = 2) out vec4 out_v2[];
 layout(location = 3) out vec4 out_up[];
 
-const int level = 4;
 
 void main() {
-    // Don't move the origin location of the patch
-    gl_out[gl_InvocationID].gl_Position = gl_in[gl_InvocationID].gl_Position;
-
     out_v0[gl_InvocationID] = in_v0[gl_InvocationID];
     out_v1[gl_InvocationID] = in_v1[gl_InvocationID];
     out_v2[gl_InvocationID] = in_v2[gl_InvocationID];
     out_up[gl_InvocationID] = in_up[gl_InvocationID];
 
-    if (gl_InvocationID == 0) {
-        gl_TessLevelInner[0] = level - 2;
-        gl_TessLevelInner[1] = level - 2;
+    vec4 p = camera.view * vec4(in_v0[gl_InvocationID].xyz, 1);
 
-        gl_TessLevelOuter[0] = level;
-        gl_TessLevelOuter[1] = level;
-        gl_TessLevelOuter[2] = level;
-        gl_TessLevelOuter[3] = level;
+    float height = in_v1[gl_InvocationID].w;
+    float width = in_v2[gl_InvocationID].w;
+    float ratio = width / height;
+
+    const float d_max = 25;
+    const int n = 8;
+    const uint base = 1;
+
+    float factor = max(1.0 - length(p.xyz) / d_max, 0);
+    factor *= factor;
+
+    uint height_level = uint(floor(factor * n)) + base;
+    uint width_level = uint(floor(ratio * height_level)) + base;
+
+    if (gl_InvocationID == 0) {
+        gl_TessLevelInner[0] = width_level;
+        gl_TessLevelInner[1] = height_level;
+
+        gl_TessLevelOuter[0] = height_level;
+        gl_TessLevelOuter[1] = width_level;
+        gl_TessLevelOuter[2] = height_level;
+        gl_TessLevelOuter[3] = height_level;
     }
 }
