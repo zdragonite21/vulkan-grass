@@ -20,6 +20,7 @@ struct Blade {
     vec4 v1;
     vec4 v2;
     vec4 up;
+    vec4 f;
 };
 
 const mat3 m3 = mat3(0.00, 0.80, 0.60, -0.80, 0.36, -0.48, -0.60, -0.48, 0.64);
@@ -82,7 +83,6 @@ vec3 perlinNoise3DFBM(vec3 x, int octaves, float amplitude, float frequency) {
 
 // The project is using vkCmdDrawIndirect to use a buffer as the arguments for a draw call
 // This is sort of an advanced feature so we've showed you what this buffer should look like
-//
 
 layout(set = 2, binding = 0, std430) buffer InputBlades { Blade blades[]; }
 inputBlades;
@@ -102,6 +102,7 @@ bool inBounds(float value, float bounds) { return (value >= -bounds) && (value <
 
 const float mass = 1;
 const float gravity = -9.8;
+const float collision_decay = 0.1;
 
 bool in_frustum(vec3 p, mat4 vp) {
     vec4 c = vp * vec4(p, 1);
@@ -109,6 +110,11 @@ bool in_frustum(vec3 p, mat4 vp) {
     float hz = c.w + 0.01;
     return all(greaterThanEqual(c.xy, vec2(-h))) && all(lessThanEqual(c.xy, vec2(h))) && c.z >= 0 &&
            c.z <= hz;
+}
+
+vec3 collision_constraint(vec3 p, vec3 c, float r) {
+    float len_cp = length(p - c);
+    return min(len_cp - r, 0) * (c - p) / len_cp;
 }
 
 void main() {
@@ -133,17 +139,19 @@ void main() {
     vec3 v1 = b.v1.xyz;
     vec3 v2 = b.v2.xyz;
     vec3 up = b.up.xyz;
+    vec3 wf = b.f.xyz;
     float ang = b.v0.w;
     float height = b.v1.w;
     float width = b.v2.w;
     float stiffness = b.up.w;
+    float cf = b.f.w;
 
     vec3 dir = vec3(cos(ang), 0, sin(ang));
     vec3 t1 = cross(up, dir);
 
     // recovery
     vec3 iv2 = v0 + height * up;
-    vec3 r = (iv2 - v2) * stiffness;
+    vec3 r = (iv2 - v2) * stiffness * max(1.0 - cf, 0.1);
 
     // gravity
     vec3 ge = mass * vec3(0, gravity, 0);
@@ -158,9 +166,23 @@ void main() {
     float fr = dot((v2 - v0), up) / height;
     vec3 w = wi * fd * fr;
 
-    // delta
-    vec3 delta = (r + g + w) * deltaTime;
-    v2 += delta;
+    // collisions
+    const vec3 noise = perlinNoise3D(vec3(-10, -10, totalTime)) * 20;
+    const float radius = 1.5;
+    const vec3 sphere = vec3(noise.x, radius * 1.25, noise.z);
+
+    vec3 m = 0.25 * v0 + 0.5 * v1 + 0.25 * v2;
+
+    vec3 v2_cc = collision_constraint(v2, sphere, radius);
+    vec3 m_cc = collision_constraint(m, sphere, radius);
+    vec3 delta = v2_cc + 4.0 * m_cc;
+
+    cf += dot(v2_cc, v2_cc);
+    cf += dot(m_cc, m_cc);
+
+    // update
+    v2 += (r + g + w) * deltaTime + delta;
+    cf = max(cf - collision_decay * deltaTime, 0);
 
     // validation
     // pbd below 0 constraint
@@ -176,12 +198,10 @@ void main() {
     vec3 cv1 = v0 + cr * (v1 - v0);
     v2 = cv1 + cr * (v2 - v1);
 
-    // collisions
-    vec3 m = 0.25 * v0 + 0.5 * v1 + 0.25 * v2;
-
     // set blade
     b.v1.xyz = cv1;
     b.v2.xyz = v2;
+    b.f.w = cf;
     inputBlades.blades[gl_GlobalInvocationID.x] = b;
 
     // culling
@@ -202,7 +222,7 @@ void main() {
     // distance culling
     mat3 rot = mat3(camera.view);
     vec3 d = camera.view[3].xyz;
-    vec3 cpos = - d * rot;
+    vec3 cpos = -d * rot;
     float d_proj = length(v0 - cpos - up * dot(v0 - cpos, up));
     const float d_max = 30;
     const uint n = 10;
