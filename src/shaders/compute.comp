@@ -63,6 +63,17 @@ void main() {
     // Note: to do this, you will need to use an atomic operation to read and update
     // numBlades.vertexCount You want to write the visible blades to the buffer without write
     // conflicts between threads
-    culledBlades.blades[numBlades.vertexCount] = inputBlades.blades[numBlades.vertexCount];
-    atomicAdd(numBlades.vertexCount, 1u);
+    Blade b = inputBlades.blades[gl_GlobalInvocationID.x];
+    float ang = b.v0.w;
+    vec3 dir = vec3(cos(ang), 0, sin(ang));
+    vec3 t1 = cross(b.up.xyz, dir);
+
+    vec3 fwd = normalize(-vec3(camera.view[0][2], camera.view[1][2], camera.view[2][2]));
+
+    if (abs(dot(t1, fwd)) > 0.9) {
+        // orientation culling
+        return;
+    }
+    uint slot = atomicAdd(numBlades.vertexCount, 1u);
+    culledBlades.blades[slot] = inputBlades.blades[gl_GlobalInvocationID.x];
 }
