@@ -22,6 +22,60 @@ struct Blade {
     vec4 up;
 };
 
+const mat3 m3 = mat3(0.00, 0.80, 0.60, -0.80, 0.36, -0.48, -0.60, -0.48, 0.64);
+
+vec3 hash3(vec3 p) {
+    p = vec3(dot(p, vec3(127.1, 311.7, 74.7)), dot(p, vec3(269.5, 183.3, 246.1)),
+             dot(p, vec3(113.5, 271.9, 124.6)));
+    return fract(sin(p) * 43758.5453123);
+}
+
+vec3 random3D(vec3 p) { return hash3(p) * 2.0 - 1.0; }
+
+float surfletFloat(vec3 p, vec3 gridPoint) {
+    vec3 t = abs(p - gridPoint);
+    vec3 t2 = vec3(1.0) - 6.0 * t * t * t * t * t + 15.0 * t * t * t * t - 10.0 * t * t * t;
+    vec3 gradient = random3D(gridPoint);
+    vec3 diff = p - gridPoint;
+    float height = dot(diff, gradient);
+    return height * t2.x * t2.y * t2.z;
+}
+
+float perlinNoise3DFloat(vec3 p) {
+    vec3 pFloor = floor(p);
+    float total = 0.0;
+
+    // Sum contributions from 8 corners of the cube
+    for (int dx = 0; dx <= 1; dx++) {
+        for (int dy = 0; dy <= 1; dy++) {
+            for (int dz = 0; dz <= 1; dz++) {
+                vec3 gridPoint = pFloor + vec3(dx, dy, dz);
+                total += surfletFloat(p, gridPoint);
+            }
+        }
+    }
+    return clamp(total * 1.41421356, -1.0, 1.0);
+}
+
+vec3 perlinNoise3D(vec3 p) {
+    return vec3(perlinNoise3DFloat(p), perlinNoise3DFloat(p + vec3(123.4, 567.8, 901.2)),
+                perlinNoise3DFloat(p + vec3(234.5, 678.9, 012.3)));
+}
+
+vec3 perlinNoise3DFBM(vec3 x, int octaves, float amplitude, float frequency) {
+    vec3 h = vec3(0.0);
+    float f = frequency;
+    float a = amplitude;
+
+    for (int i = 1; i <= octaves; i++) {
+        h += perlinNoise3D(x) * a;
+        a *= 0.5;
+        x *= m3 * f;
+    }
+
+    return h;
+}
+
 // 1. Store the input blades
 // 2. Write out the culled blades
 // 3. Write the total number of blades remaining
@@ -30,7 +84,7 @@ struct Blade {
 // This is sort of an advanced feature so we've showed you what this buffer should look like
 //
 
-layout(set = 2, binding = 0, std430) readonly buffer InputBlades { Blade blades[]; }
+layout(set = 2, binding = 0, std430) buffer InputBlades { Blade blades[]; }
 inputBlades;
 
 layout(set = 2, binding = 1, std430) buffer CulledBlades { Blade blades[]; }
@@ -45,6 +99,9 @@ layout(set = 2, binding = 2) buffer NumBlades {
 numBlades;
 
 bool inBounds(float value, float bounds) { return (value >= -bounds) && (value <= bounds); }
+
+const float mass = 1;
+const float gravity = -9.8;
 
 void main() {
     // Reset the number of blades to 0
@@ -64,9 +121,63 @@ void main() {
     // numBlades.vertexCount You want to write the visible blades to the buffer without write
     // conflicts between threads
     Blade b = inputBlades.blades[gl_GlobalInvocationID.x];
+    vec3 v0 = b.v0.xyz;
+    vec3 v1 = b.v1.xyz;
+    vec3 v2 = b.v2.xyz;
+    vec3 up = b.up.xyz;
     float ang = b.v0.w;
+    float height = b.v1.w;
+    float width = b.v2.w;
+    float stiffness = b.up.w;
+
     vec3 dir = vec3(cos(ang), 0, sin(ang));
-    vec3 t1 = cross(b.up.xyz, dir);
+    vec3 t1 = cross(up, dir);
+    vec3 f = cross(up, t1);
+
+    // recovery
+    vec3 iv2 = v0 + vec3(0, height, 0);
+    vec3 r = (iv2 - v2) * stiffness;
+
+    // gravity
+    vec3 ge = mass * vec3(0, gravity, 0);
+    float len_ge = abs(gravity * mass);
+    vec3 gf = 1.0 / 4.0 * len_ge * f;
+    vec3 g = ge + gf;
+
+    // wind
+    // store a fourth vec4 for advected wind + collision coefficient
+    vec3 wi = perlinNoise3D(vec3(v0.xz, totalTime)) * 100;
+    float fd = 1 - abs(dot(normalize(wi), normalize(v2 - v0)));
+    float fr = dot((v2 - v0), up) / height;
+    vec3 w = wi * fd * fr;
+
+    // delta
+    vec3 delta = (r + g + w) * deltaTime;
+    v2 += delta;
+    b.v2.xyz = v2;
+
+
+    // validation
+    // pbd below 0 constraint
+    v2 -= up * min(dot(up, v2 - v0), 0);
+    // v1 correction
+    float l_proj = length(v2 - v0 - up * dot(v2 - v0, up));
+    v1 = v0 + height * up * max(1 - l_proj / height, 0.05 * max(l_proj / height, 1));
+    // length
+    float l0 = length(v2 - v0);
+    float l1 = length(v1 - v0) + length(v2 - v1);
+    float l = 2.0 / 3.0 * (l0 + l1);
+    float cr = height / l;
+    vec3 cv1 = v0 + cr * (v1 - v0);
+    v2 = cv1 + cr * (v2 - v1);
+
+    // set blade
+    // b.v0.xyz = v0;
+    // b.v1.xyz = cv1;
+    // b.v2.xyz = v2;
+    inputBlades.blades[gl_GlobalInvocationID.x] = b;
+
+    // culling
 
     vec3 fwd = normalize(-vec3(camera.view[0][2], camera.view[1][2], camera.view[2][2]));
 
@@ -74,8 +185,6 @@ void main() {
         // orientation culling
         return;
     }
-
-    b.v2 += vec4(1, 0, 0, 0);
 
     uint slot = atomicAdd(numBlades.vertexCount, 1u);
     culledBlades.blades[slot] = b;
