@@ -84,7 +84,7 @@ vec3 color_ramp(vec4 ramp[RAMP_COUNT], float t) {
 }
 
 const vec3 fog_color = vec3(0.1, 0.2, 0.3);
-const float fog_density = 0.1;
+const float fog_density = 0.05;
 
 float fog(float dist) {
     float factor = exp(-pow(fog_density * dist, 2.0));

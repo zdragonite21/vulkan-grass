@@ -113,7 +113,7 @@ bool in_frustum(vec3 p, mat4 vp) {
 }
 
 vec3 collision_constraint(vec3 p, vec3 c, float r) {
-    float len_cp = length(p - c);
+    float len_cp = max(length(p - c), 0.001);
     return min(len_cp - r, 0) * (c - p) / len_cp;
 }
 
@@ -139,7 +139,6 @@ void main() {
     vec3 v1 = b.v1.xyz;
     vec3 v2 = b.v2.xyz;
     vec3 up = b.up.xyz;
-    vec3 wf = b.f.xyz;
     float ang = b.v0.w;
     float height = b.v1.w;
     float width = b.v2.w;
@@ -161,7 +160,14 @@ void main() {
 
     // wind
     // store a fourth vec4 for advected wind + collision coefficient
-    vec3 wi = perlinNoise3D(vec3(v0.xz * 0.1, totalTime)) * 10;
+    const vec2 wdir = normalize(vec2(1, 1));
+    const float evolve = 0.05;
+    const float wind_strength = 30.0;
+    const float scale = 0.1;
+
+    vec2 sp = scale * v0.xz - wdir * totalTime;
+    vec3 wi = vec3(wdir.x, 0, wdir.y) * 3 + perlinNoise3DFBM(vec3(sp, evolve * totalTime), 3, 0.5, 0.1) * wind_strength;
+
     float fd = 1 - abs(dot(normalize(wi), normalize(v2 - v0)));
     float fr = dot((v2 - v0), up) / height;
     vec3 w = wi * fd * fr;
@@ -220,12 +226,14 @@ void main() {
     }
 
     // distance culling
+    const float d_max = 60;
+    const uint n = 10;
+
     mat3 rot = mat3(camera.view);
     vec3 d = camera.view[3].xyz;
     vec3 cpos = -d * rot;
     float d_proj = length(v0 - cpos - up * dot(v0 - cpos, up));
-    const float d_max = 30;
-    const uint n = 10;
+
     if (gl_GlobalInvocationID.x % n > floor((1.0 - d_proj / d_max) * n)) {
         return;
     }

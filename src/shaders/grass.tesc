@@ -32,7 +32,7 @@ void main() {
     float width = in_v2[gl_InvocationID].w;
     float ratio = width / height;
 
-    const float d_max = 25;
+    const float d_max = 60;
     const int n = 8;
     const uint base = 1;
 
