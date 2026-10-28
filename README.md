@@ -18,6 +18,7 @@ vulkan grass rendering
 ### frustum culling
 
 ![alt text](img/frustum_culling_demo.gif)
+
 *exaggerated for demonstration*
 
 
