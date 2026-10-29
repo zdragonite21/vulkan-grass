@@ -1,6 +1,11 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
 
+#define CULLING 1
+#define ORIENT_CULLING 1
+#define FRUSTUM_CULLING 1
+#define DISTANCE_CULLING 1
+
 #define WORKGROUP_SIZE 32
 layout(local_size_x = WORKGROUP_SIZE, local_size_y = 1, local_size_z = 1) in;
 
@@ -166,7 +171,8 @@ void main() {
     const float scale = 0.1;
 
     vec2 sp = scale * v0.xz - wdir * totalTime;
-    vec3 wi = vec3(wdir.x, 0, wdir.y) * 3 + perlinNoise3DFBM(vec3(sp, evolve * totalTime), 3, 0.5, 0.1) * wind_strength;
+    vec3 wi = vec3(wdir.x, 0, wdir.y) * 3 +
+              perlinNoise3DFBM(vec3(sp, evolve * totalTime), 3, 0.5, 0.1) * wind_strength;
 
     float fd = 1 - abs(dot(normalize(wi), normalize(v2 - v0)));
     float fr = dot((v2 - v0), up) / height;
@@ -211,20 +217,26 @@ void main() {
     inputBlades.blades[gl_GlobalInvocationID.x] = b;
 
     // culling
+#if CULLING
 
+#if ORIENT_CULLING
     // orientation culling
     // view gives us world to cam, but we want cam to world, so we take the -inverse cuz neg z
     vec3 fwd = normalize(-vec3(camera.view[0][2], camera.view[1][2], camera.view[2][2]));
     if (abs(dot(t1, fwd)) > 0.9) {
         return;
     }
+#endif
 
+#if FRUSTUM_CULLING
     // view frustum culling
     mat4 vp = camera.proj * camera.view;
     if (!(in_frustum(v0, vp) || in_frustum(m, vp) || in_frustum(v2, vp))) {
         return;
     }
+#endif
 
+#if DISTANCE_CULLING
     // distance culling
     const float d_max = 60;
     const uint n = 10;
@@ -237,6 +249,9 @@ void main() {
     if (gl_GlobalInvocationID.x % n > floor((1.0 - d_proj / d_max) * n)) {
         return;
     }
+#endif
+
+#endif
 
     uint slot = atomicAdd(numBlades.vertexCount, 1u);
     culledBlades.blades[slot] = b;

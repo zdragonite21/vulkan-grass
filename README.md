@@ -46,12 +46,12 @@ Each blade is represented by 3 Beizer curve control points and other attributes 
 
 ### simulation and rendering pipeline
 
-On startup, grass blades are randomly placed on the CPU and allocated to a GPU buffer.
+on startup, grass blades are randomly placed on the CPU and allocated to a GPU buffer.
 
-Once per frame:
-1. **Compute Pipeline**
+once per frame:
+1. **compute pipeline**
     1. Dispatch one thread per grass blade, applying physics forces, state validation, and culling (using atomics)
-2. **Graphics Pipeline**
+2. **graphics pipeline**
     1. Input Aseembler (groups each grass blade into a patch)
     2. Vertex Stage (applies model matrices to orient the grass blades along the surface's normal)
     3. Tessellation Control (sets subdivision level based on width and height of the blade, and varies level of detail (LOD) based on blade distance to camera)

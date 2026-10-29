@@ -1,6 +1,8 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
 
+#define LOD 1
+
 layout(vertices = 1) out;
 
 layout(set = 0, binding = 0) uniform CameraBufferObject {
@@ -19,7 +21,6 @@ layout(location = 1) out vec4 out_v1[];
 layout(location = 2) out vec4 out_v2[];
 layout(location = 3) out vec4 out_up[];
 
-
 void main() {
     out_v0[gl_InvocationID] = in_v0[gl_InvocationID];
     out_v1[gl_InvocationID] = in_v1[gl_InvocationID];
@@ -36,8 +37,12 @@ void main() {
     const int n = 8;
     const uint base = 1;
 
+#if LOD
     float factor = max(1.0 - length(p.xyz) / d_max, 0);
     factor *= factor;
+#else
+    float factor = 1.0;
+#endif
 
     uint height_level = uint(floor(factor * n)) + base;
     uint width_level = uint(floor(ratio * height_level)) + base;
