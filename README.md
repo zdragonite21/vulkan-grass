@@ -77,3 +77,15 @@ _threshold exaggerated for demonstration_
 
 ## performance analysis
 
+I used Nsight Systems command line tool to measure total GPU frame time (compute + graphics).
+
+![alt text](img/perf_blades.png)
+
+Culling makes the largest difference as expected. 
+
+
+![alt text](img/perf_culling.png)
+
+Overall, compared to no optimizations enabled, our gpu frame time is cut by about half with all optimizations enabled. The culling methods all reduce frame time and frustum culling has the greatest impact as expected. The LODs optimization increasing frame time is unexpected, but could be explained by additional matrix and distance calculations to set the levels. This also indicates that rendering the geometry is not the primary bottleneck, and the bottleneck is likely in the compute shader.
+
+Future optimizations: subgroup atomics (currently using device-wide atomics), task and mesh shaders, frame-in-flight resources.

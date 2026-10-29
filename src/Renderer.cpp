@@ -326,15 +326,17 @@ void Renderer::CreateModelDescriptorSets() {
     }
 
     std::vector<VkWriteDescriptorSet> descriptorWrites(2 * modelDescriptorSets.size());
+    std::vector<VkDescriptorBufferInfo> modelBufferInfos(modelDescriptorSets.size());
+    std::vector<VkDescriptorImageInfo> imageInfos(modelDescriptorSets.size());
 
     for (uint32_t i = 0; i < scene->GetModels().size(); ++i) {
-        VkDescriptorBufferInfo modelBufferInfo = {};
+        VkDescriptorBufferInfo& modelBufferInfo = modelBufferInfos[i];
         modelBufferInfo.buffer = scene->GetModels()[i]->GetModelBuffer();
         modelBufferInfo.offset = 0;
         modelBufferInfo.range = sizeof(ModelBufferObject);
 
         // Bind image and sampler resources to the descriptor
-        VkDescriptorImageInfo imageInfo = {};
+        VkDescriptorImageInfo& imageInfo = imageInfos[i];
         imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
         imageInfo.imageView = scene->GetModels()[i]->GetTextureView();
         imageInfo.sampler = scene->GetModels()[i]->GetTextureSampler();
